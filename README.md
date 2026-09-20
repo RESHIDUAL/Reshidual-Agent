@@ -10,7 +10,7 @@
 - **Shivani R**
 
 ---
-
+[![Watch the 10-min demo](docs/sc/demo-thumbnail.png)](https://drive.google.com/file/d/10jsw-GcUB4uGIHqcb0K8oAyBf7znO2KZ/view?usp=drive_link)
 ## 1. System Overview & Problem Statement
 
 Modern AI developer tools force engineers into a "Privacy Tax"—exchanging intellectual property, proprietary codebases, and credentials for developer intelligence. Cloud-first RAG setups incur 200–800ms roundtrip latencies, require heavy external vector databases, and leak sensitive contextual metadata to third-party servers.
