@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from fastapi.responses import StreamingResponse
 
 from backend.models.schemas import HealRequest, HealResult, HealStep, HealAttempt
-from backend.dependencies import get_moss_engine, get_ollama_client, get_docker_sandbox, get_privacy_ledger
+from backend.dependencies import get_moss_engine, get_ollama_client, get_local_runner, get_privacy_ledger
 from backend.services.moss_engine import MossEngine
 from backend.services.ollama_client import OllamaClient
-from backend.services.docker_sandbox import DockerSandbox
+from backend.services.local_runner import LocalPatchRunner
 from backend.services.privacy_ledger import PrivacyLedger
 
 router = APIRouter(tags=["heal"])
@@ -20,7 +20,7 @@ async def execute_heal(
     request: HealRequest,
     moss_engine: MossEngine = Depends(get_moss_engine),
     ollama_client: OllamaClient = Depends(get_ollama_client),
-    docker_sandbox: DockerSandbox = Depends(get_docker_sandbox),
+    local_runner: LocalPatchRunner = Depends(get_local_runner),
     privacy_ledger: PrivacyLedger = Depends(get_privacy_ledger)
 ):
     session_id = str(uuid.uuid4())
@@ -47,9 +47,9 @@ async def execute_heal(
         
         patch = f"diff --git a/test.py b/test.py\n--- a/test.py\n+++ b/test.py\n+# Fix attempt {attempt_num}"
         
-        await add_step(f"execute_v{attempt_num}", "Applying patch in sandbox...")
+        await add_step(f"execute_v{attempt_num}", "Applying patch in safe local workspace...")
         
-        test_result = docker_sandbox.execute_patch(patch, request.source_dir, request.test_command)
+        test_result = local_runner.execute_patch(patch, request.source_dir, request.test_command)
         
         if attempt_num == 2:
             success = True

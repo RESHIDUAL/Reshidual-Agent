@@ -29,7 +29,7 @@ Developers need an AI engineering copilot that:
   - **Notes & Documents:** Native file selection and indexing for `.pdf`, `.docx`, `.doc`, `.txt`, `.md`, and `.xlsx`.
   - **Live Browser Tabs:** Real-time Chromium SNSS session binary decoding and SQLite history discovery across Brave, Chrome, Edge, and Opera with dynamic UI refresh.
 - **Bring Your Own Model (BYOM) Flexibility:** Support local Ollama models alongside cloud providers (NVIDIA NIM, Google Gemini, OpenAI, Anthropic Claude) through a unified gateway.
-- **Autonomous Self-Healing:** Diagnose errors, generate AST-aware patches, and execute verification test loops in a network-isolated Docker sandbox (`--network none`).
+- **Autonomous Self-Healing:** Diagnose errors, generate AST-aware patches, and execute isolated verification test loops with strict timeout limits.
 - **Clean Session Isolation:** Prevent stale chunk cross-contamination with 1-click source reindexing and complete index clearing.
 
 ---
@@ -61,7 +61,7 @@ Developers need an AI engineering copilot that:
 - **Cryptographic Integrity Verification:** One-click recomputation and validation of the entire SHA-256 audit ledger chain.
 
 ### P2: Autonomous Healing & Voice Pipeline
-- **Containerized Code Repair:** Multi-stage diagnostic, patch generation, and test verification cycle running inside a local Docker container with `--network none` and strict resource caps (512MB RAM, 1 CPU).
+- **Automated Code Repair:** Multi-stage diagnostic, patch generation, and test verification cycle executing safely in isolated temporary workspaces with execution timeouts.
 - **LiveKit Audio Streaming:** Local voice capture and streaming server enabling push-to-talk speech interactions with hotword detection.
 - **Tauri v2 Desktop Packaging:** Native cross-platform desktop shell wrapping the Next.js frontend with low memory overhead.
 
@@ -93,7 +93,7 @@ Developers need an AI engineering copilot that:
 |                                                                                                   |
 |  +---------------------------------------------------------------------------------------------+  |
 |  |                                  AUTONOMOUS HEALING & EVAL                                  |  |
-|  |  - Docker Container Sandbox (--network none)       - Recall@3 Golden Evaluation Suite       |  |
+|  |  - Safe Local Runner (Isolated Temp Exec)        - Recall@3 Golden Evaluation Suite       |  |
 |  |  - AST Diff Generation & Patch Validation          - Latency Race vs Linear Search          |  |
 |  +---------------------------------------------------------------------------------------------+  |
 +---------------------------------------------------------------------------------------------------+

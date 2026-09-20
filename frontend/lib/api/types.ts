@@ -223,7 +223,6 @@ export interface EvalResult {
 export interface HealthStatus {
   ollama: boolean;
   moss: boolean;
-  docker: boolean;
   livekit: boolean;
   models: string[];
   ollama_version?: string;

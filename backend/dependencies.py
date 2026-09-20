@@ -5,7 +5,7 @@ from backend.services.moss_engine import MossEngine
 from backend.services.ollama_client import OllamaClient
 from backend.services.privacy_ledger import PrivacyLedger
 from backend.services.secret_scanner import SecretScanner
-from backend.services.docker_sandbox import DockerSandbox
+from backend.services.local_runner import LocalPatchRunner
 from backend.services.eval_harness import EvalHarness
 from backend.services.trust_score import TrustScoreCalculator
 from backend.services.livekit_service import LiveKitService
@@ -19,7 +19,7 @@ class DependencyContainer:
     _ollama_client: Optional[OllamaClient] = None
     _privacy_ledger: Optional[PrivacyLedger] = None
     _secret_scanner: Optional[SecretScanner] = None
-    _docker_sandbox: Optional[DockerSandbox] = None
+    _local_runner: Optional[LocalPatchRunner] = None
     _eval_harness: Optional[EvalHarness] = None
     _trust_score_calculator: Optional[TrustScoreCalculator] = None
     _livekit_service: Optional[LiveKitService] = None
@@ -62,10 +62,10 @@ async def get_secret_scanner() -> SecretScanner:
         container._secret_scanner = SecretScanner()
     return container._secret_scanner
 
-async def get_docker_sandbox() -> DockerSandbox:
-    if container._docker_sandbox is None:
-        container._docker_sandbox = DockerSandbox()
-    return container._docker_sandbox
+async def get_local_runner() -> LocalPatchRunner:
+    if container._local_runner is None:
+        container._local_runner = LocalPatchRunner()
+    return container._local_runner
 
 async def get_eval_harness() -> EvalHarness:
     if container._eval_harness is None:

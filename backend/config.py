@@ -18,10 +18,6 @@ class Settings(BaseSettings):
     MOSS_PROJECT_KEY: str = ""
     MOSS_INDEX_NAME: str = "reshidual_codebase"
     
-    DOCKER_NETWORK: str = 'none'
-    DOCKER_MEMORY_LIMIT: str = '512m'
-    DOCKER_CPU_LIMIT: float = 1.0
-    
     @property
     def DB_PATH(self) -> Path:
         return self.DATA_DIR / 'agent.db'

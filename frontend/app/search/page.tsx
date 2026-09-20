@@ -64,7 +64,7 @@ const SUGGESTED_PROMPTS: Record<SourceType, string[]> = {
     'Where is MossEngine initialized in the backend?',
     'Explain how tree_sitter_parser.py chunks source code',
     'Show the database schema for chunks and audit log',
-    'How does docker_sandbox execute patches safely?'
+    'How does local_runner execute patches safely?'
   ],
   notes: [
     'Summarize our project requirements and architecture',

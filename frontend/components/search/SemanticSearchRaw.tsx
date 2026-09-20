@@ -44,7 +44,7 @@ const SEARCH_PRESETS = [
   'BrowserTabDetector',
   'tree_sitter_parser',
   'DocumentParser',
-  'docker_sandbox',
+  'local_runner',
   'sub-10ms retrieval'
 ];
 

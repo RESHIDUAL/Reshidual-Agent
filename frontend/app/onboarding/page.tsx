@@ -152,7 +152,7 @@ export default function OnboardingPage() {
         <motion.div variants={itemVariants}>
           <Card className="p-6">
             <h2 className="text-lg font-medium mb-3">Local Services Status</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <HealthCheckItem
                 name="Ollama"
                 loading={healthLoading}
@@ -164,12 +164,6 @@ export default function OnboardingPage() {
                 loading={healthLoading}
                 status={Boolean(health?.moss)}
                 detail={health?.moss_configured ? 'Configured' : 'Ready'}
-              />
-              <HealthCheckItem
-                name="Docker"
-                loading={healthLoading}
-                status={Boolean(health?.docker)}
-                detail={health?.docker ? 'Running' : 'Optional'}
               />
               <HealthCheckItem
                 name="LiveKit"

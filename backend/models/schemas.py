@@ -175,7 +175,6 @@ class EvalResult(BaseModel):
 class HealthStatus(BaseModel): 
     ollama: bool
     moss: bool
-    docker: bool
     livekit: bool
     models: list[str] = []
     ollama_version: str = ''
