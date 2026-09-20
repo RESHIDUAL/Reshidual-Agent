@@ -53,9 +53,57 @@ Modern AI developer tools force engineers into a "Privacy Tax"—exchanging inte
 
 ---
 
-## 3. Detailed Repository File Structure & Breakdown
+## 3. Interface & Feature Showcase
 
-### Root Directory
+### 1. Main Dashboard & Workspace Management
+> Unified, distraction-free engineering environment featuring the consolidated toolbar, active workspace indicators, and live session monitoring.
+
+![Main Dashboard](docs/sc/Dashboard.png)
+*Figure 1: Main Dashboard showing consolidated mode controls, source filter pills, and active working codebase status.*
+
+![Dashboard Interface Detail](docs/sc/Dashboard2.png)
+*Figure 2: Expanded dashboard interface view with the active working workspace action bar.*
+
+---
+
+### 2. Multi-Source Context Ingestion & Tab Refresh
+> Seamless ingestion of codebases, documents/notes (.pdf, .docx, .xlsx, .md), and live Chromium browser tabs without file locks or permissions errors.
+
+![Data Ingestion](docs/sc/Data%20Ingestion.png)
+*Figure 3: Data Sources Manager modal providing native file picking, single-document upload, and live tab selection.*
+
+---
+
+### 3. AI Agent Conversational RAG & Local Synthesis
+> Local-first generative copilot synthesizing exact source citations, AST code blocks, and context from Moss in-memory retrieval.
+
+![Conversational RAG](docs/sc/RAG.png)
+*Figure 4: AI Agent RAG conversation demonstrating multi-source query answering and exact file path citations.*
+
+![RAG Synthesis Detail](docs/sc/RAG1.png)
+*Figure 5: Detailed RAG synthesis with execution latency telemetry and retrieved chunk inspection.*
+
+---
+
+### 4. Sub-10ms Semantic Search (Raw Retrieval Mode)
+> Pure sub-10ms in-memory retrieval inspection with interactive alpha-blend slider (BM25 keyword vs vector similarity) and real-time telemetry.
+
+![Semantic Search Raw Retrieval](docs/sc/SS.png)
+*Figure 6: Raw semantic search showing blended scoring, why-matched explanations, and sub-10ms latency metrics.*
+
+---
+
+### 5. Bring Your Own Model (BYOM) Gateway
+> Configure high-speed cloud providers (NVIDIA NIM, Google Gemini, OpenAI, Claude, OpenRouter) alongside offline Ollama inference with in-app key validation.
+
+![Bring Your Own Model Modal](docs/sc/BYOM.png)
+*Figure 7: BYOM model management modal with branded provider cards, API key validation, and model selection.*
+
+---
+
+## 4. Detailed Repository File Structure & Breakdown
+
+### Root & Documentation Directory
 - [`run.bat`](file:///run.bat): One-click Windows startup batch script that simultaneously boots the FastAPI backend (`uvicorn backend.main:app`), launches the Next.js frontend (`npm run dev`), and opens `http://localhost:3000`.
 - [`package.json`](file:///package.json): Root NPM manifest orchestrating Tauri v2 desktop shell lifecycle and workspace scripts.
 - [`package-lock.json`](file:///package-lock.json): Pinned lockfile for root desktop dependencies.
@@ -65,6 +113,7 @@ Modern AI developer tools force engineers into a "Privacy Tax"—exchanging inte
 - [`Architecture.jpg`](file:///Architecture.jpg): Detailed high-resolution architectural diagram illustrating component topology.
 - [`PRD.md`](file:///PRD.md): Product Requirements Document defining functional tiers (P0, P1, P2), architecture, and non-functional requirements.
 - [`README.md`](file:///README.md): Comprehensive system documentation, usage guides, and file directory breakdown.
+- [`docs/sc/`](file:///docs/sc/): Comprehensive interface screenshots capturing the Dashboard, Ingestion Modal, RAG Copilot, Semantic Search, and BYOM Provider Hub.
 
 ---
 
@@ -146,7 +195,7 @@ Modern AI developer tools force engineers into a "Privacy Tax"—exchanging inte
 
 ---
 
-## 4. Getting Started & Installation
+## 5. Getting Started & Installation
 
 ### Prerequisites
 - **Python 3.11+**
@@ -157,8 +206,8 @@ Modern AI developer tools force engineers into a "Privacy Tax"—exchanging inte
 
 ### Step 1: Clone and Configure Environment
 ```bash
-git clone https://github.com/Shivani-R-Eshwar-G/reshidual-agent.git
-cd reshidual-agent
+git clone https://github.com/RESHIDUAL/Reshidual-Agent.git
+cd Reshidual-Agent
 
 # Create your local environment file
 copy .env.example .env
@@ -204,7 +253,7 @@ Open `http://localhost:3000` in your browser.
 
 ---
 
-## 5. Verification & Testing
+## 6. Verification & Testing
 
 Verify that all local AST parsers, secret sanitizers, and Moss SDK bindings are operational:
 ```bash
@@ -219,7 +268,7 @@ npm run build
 
 ---
 
-## 6. Core REST & WebSocket API Reference
+## 7. Core REST & WebSocket API Reference
 
 | Endpoint | Method | Description |
 |---|---|---|
@@ -243,6 +292,6 @@ npm run build
 
 ---
 
-## 7. License
+## 8. License
 
 This project is licensed under the MIT License.
