@@ -6,8 +6,8 @@
 ---
 
 ### Project Credentials & Authors
-- **Shivani R**
 - **Eshwar G**
+- **Shivani R**
 
 ---
 
