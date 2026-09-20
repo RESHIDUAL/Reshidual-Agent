@@ -1,0 +1,127 @@
+[
+  {
+    "query": "How are users authenticated?",
+    "expected_file": "auth.py",
+    "expected_content_keywords": ["jwt", "login", "verify_password"]
+  },
+  {
+    "query": "Where is the main database schema defined?",
+    "expected_file": "models.py",
+    "expected_content_keywords": ["Base", "Column", "Integer"]
+  },
+  {
+    "query": "How do we handle rate limiting?",
+    "expected_file": "middleware.py",
+    "expected_content_keywords": ["RateLimit", "Redis", "429"]
+  },
+  {
+    "query": "What endpoint creates a new user?",
+    "expected_file": "routers/users.py",
+    "expected_content_keywords": ["POST", "/users", "create_user"]
+  },
+  {
+    "query": "How is configuration loaded?",
+    "expected_file": "config.py",
+    "expected_content_keywords": ["BaseSettings", "env_file"]
+  },
+  {
+    "query": "Where is the logger configured?",
+    "expected_file": "logger.py",
+    "expected_content_keywords": ["logging.getLogger", "StreamHandler"]
+  },
+  {
+    "query": "What is the entry point for the FastAPI app?",
+    "expected_file": "main.py",
+    "expected_content_keywords": ["FastAPI", "uvicorn", "app.include_router"]
+  },
+  {
+    "query": "How are passwords hashed?",
+    "expected_file": "security.py",
+    "expected_content_keywords": ["pwd_context", "bcrypt"]
+  },
+  {
+    "query": "Where are the Pydantic schemas for requests?",
+    "expected_file": "schemas.py",
+    "expected_content_keywords": ["BaseModel", "UserCreate"]
+  },
+  {
+    "query": "How are database connections managed?",
+    "expected_file": "database.py",
+    "expected_content_keywords": ["sessionmaker", "create_engine", "get_db"]
+  },
+  {
+    "query": "Where is the background worker defined?",
+    "expected_file": "worker.py",
+    "expected_content_keywords": ["Celery", "task"]
+  },
+  {
+    "query": "How do we send emails?",
+    "expected_file": "email.py",
+    "expected_content_keywords": ["smtplib", "MIMEText", "send_mail"]
+  },
+  {
+    "query": "Where are the error handlers and exception catching?",
+    "expected_file": "exceptions.py",
+    "expected_content_keywords": ["HTTPException", "app.add_exception_handler"]
+  },
+  {
+    "query": "How do we validate input data?",
+    "expected_file": "validators.py",
+    "expected_content_keywords": ["@validator", "regex"]
+  },
+  {
+    "query": "Where are the constants and enums?",
+    "expected_file": "constants.py",
+    "expected_content_keywords": ["Enum", "MAX_RETRIES"]
+  },
+  {
+    "query": "What handles file uploads?",
+    "expected_file": "routers/uploads.py",
+    "expected_content_keywords": ["UploadFile", "File"]
+  },
+  {
+    "query": "How do we generate PDF reports?",
+    "expected_file": "services/pdf_gen.py",
+    "expected_content_keywords": ["reportlab", "canvas"]
+  },
+  {
+    "query": "Where is the cache logic?",
+    "expected_file": "cache.py",
+    "expected_content_keywords": ["redis.Redis", "setex"]
+  },
+  {
+    "query": "How do we parse external API responses?",
+    "expected_file": "clients/external.py",
+    "expected_content_keywords": ["httpx", "json"]
+  },
+  {
+    "query": "Where are the unit tests for auth?",
+    "expected_file": "tests/test_auth.py",
+    "expected_content_keywords": ["pytest", "assert"]
+  },
+  {
+    "query": "How are CORS headers configured?",
+    "expected_file": "main.py",
+    "expected_content_keywords": ["CORSMiddleware", "allow_origins"]
+  },
+  {
+    "query": "Where is the migration script configuration?",
+    "expected_file": "alembic/env.py",
+    "expected_content_keywords": ["target_metadata", "run_migrations_online"]
+  },
+  {
+    "query": "How do we connect to WebSockets?",
+    "expected_file": "routers/ws.py",
+    "expected_content_keywords": ["WebSocket", "accept", "send_text"]
+  },
+  {
+    "query": "Where are the Stripe webhooks handled?",
+    "expected_file": "routers/billing.py",
+    "expected_content_keywords": ["stripe.Webhook", "construct_event"]
+  },
+  {
+    "query": "How is pagination implemented?",
+    "expected_file": "utils.py",
+    "expected_content_keywords": ["limit", "offset", "Page"]
+  }
+]

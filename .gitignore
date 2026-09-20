@@ -1,0 +1,44 @@
+# Environment Variables (Keep secrets out of GitHub)
+.env
+.env.local
+.env.*.local
+*.env
+
+# Node Dependencies & Build Artifacts
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+out/
+frontend/out/
+build/
+dist/
+target/
+frontend/tsconfig.tsbuildinfo
+
+# Python Cache & Compiled Files
+__pycache__/
+backend/__pycache__/
+backend/*/__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+
+# Local Databases & Runtime Index Caches
+*.db
+*.sqlite
+*.sqlite3
+moss_index/
+backend/data/*.npy
+
+# Logs & Temporary Files
+.system_generated/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS Specific
+.DS_Store
+Thumbs.db
+desktop.ini
