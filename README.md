@@ -10,6 +10,7 @@
 - **Shivani R**
 
 ---
+### Watch the 10-min demo
 [![Watch the 10-min demo](docs/sc/demo-thumbnail.png)](https://drive.google.com/file/d/10jsw-GcUB4uGIHqcb0K8oAyBf7znO2KZ/view?usp=drive_link)
 ## 1. System Overview & Problem Statement
 
