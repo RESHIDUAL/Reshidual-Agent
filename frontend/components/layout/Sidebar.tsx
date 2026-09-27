@@ -10,7 +10,9 @@ import {
   Cpu, 
   Sparkles,
   Zap,
-  Key
+  Key,
+  Activity,
+  Shield
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { BYOMModal } from '@/components/models/BYOMModal';
@@ -61,6 +63,8 @@ function SidebarNav({ onOpenByom }: SidebarNavProps) {
     { label: 'AI Agent', icon: Bot, path: '/search?mode=agent', id: 'agent' },
     { label: 'Semantic Search', icon: Search, path: '/search?mode=search', id: 'search' },
     { label: 'Settings', icon: Settings, path: '/settings', id: 'settings' },
+    { label: 'Live Retrieval Explainability Map', icon: Activity, path: '/explainability', id: 'explainability' },
+    { label: 'Cryptographic Audit Ledger', icon: Shield, path: '/privacy', id: 'privacy' },
   ];
 
   return (
@@ -95,8 +99,8 @@ function SidebarNav({ onOpenByom }: SidebarNavProps) {
                   transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                 />
               )}
-              <Icon className={`w-4 h-4 mr-3 transition-colors ${isActive ? 'text-primary' : 'text-on-surface-variant'}`} />
-              <span>{item.label}</span>
+              <Icon className={`w-4 h-4 mr-3 flex-shrink-0 transition-colors ${isActive ? 'text-primary' : 'text-on-surface-variant'}`} />
+              <span className={item.id === 'explainability' ? 'text-[12px] leading-tight font-medium' : ''}>{item.label}</span>
             </Link>
           );
         })}

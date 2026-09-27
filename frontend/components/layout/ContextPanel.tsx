@@ -35,6 +35,9 @@ export default function ContextPanel() {
   };
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1366) {
+      setIsOpen(false);
+    }
     fetchStatus();
     const interval = setInterval(fetchStatus, 5000);
 

@@ -204,7 +204,7 @@ async def clear_source_index(
     request: ClearSourceRequest,
     moss_engine: MossEngine = Depends(get_moss_engine)
 ):
-    moss_engine.clear_source(request.source_type)
+    await moss_engine.clear_source(request.source_type)
     data = moss_engine.get_sources_status()
     return {
         "status": "cleared",

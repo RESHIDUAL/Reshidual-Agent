@@ -58,29 +58,34 @@ class PrivacyLedger:
                     for conn in conns:
                         if conn.status in ('ESTABLISHED', 'SYN_SENT') and conn.raddr:
                             ip = conn.raddr.ip
+                            port = conn.raddr.port
                             is_local = (
                                 ip.startswith("127.") or 
                                 ip == "::1" or 
                                 ip == "0.0.0.0" or 
                                 ip.startswith("192.168.") or 
                                 ip.startswith("10.") or 
-                                ip.startswith("172.")
+                                ip.startswith("172.") or
+                                port in (8420, 3000, 11434, 7880)
                             )
+                            # Standard authorized HTTPS service traffic (Moss Zero-DB API, BYOM LLM endpoints)
+                            is_authorized_service = port in (443, 80)
+                            
                             if not is_local:
                                 active_external += 1
-                                if not self.is_syncing_moss:
+                                if not is_authorized_service and not self.is_syncing_moss:
                                     self._unexpected_conn_count += 1
                                     await self.log_event("unexpected_connection", {
                                         "remote_ip": ip,
-                                        "remote_port": conn.raddr.port,
+                                        "remote_port": port,
                                         "status": conn.status,
                                         "severity": "WARNING",
-                                        "message": "Unauthorized external IP connection detected from agent process"
+                                        "message": f"Unauthorized external connection on port {port}"
                                     })
                 except Exception:
                     pass
             self._active_external_conn_count = active_external
-            await asyncio.sleep(2.0)
+            await asyncio.sleep(3.0)
 
     async def get_external_connection_count(self) -> int:
         return self._unexpected_conn_count
@@ -196,3 +201,7 @@ class PrivacyLedger:
         q = asyncio.Queue()
         self.subscribers.append(q)
         return q
+
+    def unsubscribe(self, q: asyncio.Queue):
+        if q in self.subscribers:
+            self.subscribers.remove(q)

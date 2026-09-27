@@ -33,11 +33,17 @@ export class LedgerWebSocket {
 
       this.ws.onmessage = (event) => {
         try {
-
           if (event.data === 'ping' || event.data === 'pong') return;
 
-          const data = JSON.parse(event.data) as LedgerEvent;
-          this.onEvent(data);
+          const data = JSON.parse(event.data);
+          if (data.type === 'init' || data.type === 'heartbeat') {
+            return;
+          }
+          if (data.type === 'event' && data.data) {
+            this.onEvent(data.data as LedgerEvent);
+          } else if (data.event_type) {
+            this.onEvent(data as LedgerEvent);
+          }
         } catch (e) {
           console.error('Failed to parse ledger event', e);
         }

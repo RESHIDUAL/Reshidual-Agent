@@ -30,7 +30,8 @@ export function EventStreamFeed({ events, isConnected, onEventClick }: EventStre
     }
   };
 
-  const getBadgeColor = (type: string) => {
+  const getBadgeColor = (type?: string) => {
+    if (!type || typeof type !== 'string') return 'bg-surface-variant text-on-surface-variant border-outline';
     if (type === 'moss_sync') return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 font-semibold';
     if (type === 'unexpected_connection') return 'bg-error/20 text-error border-error/50 font-bold animate-pulse';
     if (type.startsWith('engine_')) return 'bg-blue-500/20 text-blue-500 border-blue-500/30';
@@ -71,43 +72,46 @@ export function EventStreamFeed({ events, isConnected, onEventClick }: EventStre
         className="flex-1 overflow-y-auto p-4 space-y-3"
       >
         <AnimatePresence initial={false}>
-          {events.map((event, idx) => (
-            <motion.div
-              key={event.id || `${event.timestamp}-${idx}`}
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-start gap-3 text-sm cursor-pointer hover:bg-surface-container-high p-1.5 rounded transition-colors"
-              onClick={() => onEventClick && onEventClick(event.id || `${event.timestamp}`, event.event_type)}
-            >
-              <div className="text-xs text-on-surface-variant font-mono whitespace-nowrap mt-1">
-                {formatTimestamp(event.timestamp)}
-              </div>
+          {events.map((event, idx) => {
+            const eventType = event.event_type || (event as any).type || 'system_event';
+            return (
+              <motion.div
+                key={event.id || `${event.timestamp}-${idx}`}
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-start gap-3 text-sm cursor-pointer hover:bg-surface-container-high p-1.5 rounded transition-colors"
+                onClick={() => onEventClick && onEventClick(event.id || `${event.timestamp}`, eventType)}
+              >
+                <div className="text-xs text-on-surface-variant font-mono whitespace-nowrap mt-1">
+                  {formatTimestamp(event.timestamp)}
+                </div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`px-2 py-0.5 rounded border text-xs font-mono ${getBadgeColor(event.event_type)}`}>
-                    {event.event_type}
-                  </span>
-                  {event.event_type === 'secret_detected' && (
-                    <ShieldAlert className="w-4 h-4 text-orange-500 animate-pulse" />
-                  )}
-                  {event.event_type === 'moss_sync' && (
-                    <span className="text-[11px] text-cyan-400 font-medium">
-                      Cloud Sync: {event.payload?.documents_count || 0} docs &rarr; {event.payload?.destination_host || 'api.usemoss.dev'}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`px-2 py-0.5 rounded border text-xs font-mono ${getBadgeColor(eventType)}`}>
+                      {eventType}
                     </span>
-                  )}
-                  {event.event_type === 'unexpected_connection' && (
-                    <span className="text-[11px] text-error font-bold">
-                      UNEXPECTED OUTBOUND: {event.payload?.remote_ip}:{event.payload?.remote_port}
-                    </span>
-                  )}
+                    {eventType === 'secret_detected' && (
+                      <ShieldAlert className="w-4 h-4 text-orange-500 animate-pulse" />
+                    )}
+                    {eventType === 'moss_sync' && (
+                      <span className="text-[11px] text-cyan-400 font-medium">
+                        Cloud Sync: {event.payload?.documents_count || 0} docs &rarr; {event.payload?.destination_host || 'api.usemoss.dev'}
+                      </span>
+                    )}
+                    {eventType === 'unexpected_connection' && (
+                      <span className="text-[11px] text-error font-bold">
+                        UNEXPECTED OUTBOUND: {event.payload?.remote_ip}:{event.payload?.remote_port}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-on-surface truncate cursor-pointer hover:whitespace-normal hover:bg-surface-variant/50 p-1 rounded font-mono text-xs">
+                    {JSON.stringify(event.payload)}
+                  </div>
                 </div>
-                <div className="text-on-surface truncate cursor-pointer hover:whitespace-normal hover:bg-surface-variant/50 p-1 rounded font-mono text-xs">
-                  {JSON.stringify(event.payload)}
-                </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
       </div>
     </div>

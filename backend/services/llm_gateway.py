@@ -10,10 +10,7 @@ class LLMGateway:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.keys_file = self.data_dir / 'api_keys.json'
         
-        self.default_nvidia_key = os.environ.get(
-            'NVIDIA_API_KEY', 
-            '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'
-        )
+        self.default_nvidia_key = os.environ.get('NVIDIA_API_KEY', '')
         self.default_openrouter_key = os.environ.get('OPENROUTER_API_KEY', '')
         self.default_google_key = os.environ.get('GOOGLE_API_KEY', '')
         self.ollama_host = os.environ.get('OLLAMA_HOST', 'http://localhost:11434')

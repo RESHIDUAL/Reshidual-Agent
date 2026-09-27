@@ -1,7 +1,9 @@
 import os
 import time
+import shutil
 import asyncio
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Tuple, Callable, Any, Optional, Dict
 from pathlib import Path
 from datetime import datetime
@@ -59,7 +61,17 @@ DEFAULT_CODE_EXCLUDES = [
     "venv",
     ".venv",
     "__pycache__",
-    ".next"
+    ".next",
+    ".cache",
+    ".turbo",
+    "coverage",
+    ".pytest_cache",
+    ".idea",
+    ".vscode",
+    "bin",
+    "obj",
+    "vendor",
+    "artifacts"
 ]
 
 DEFAULT_NOTES_EXCLUDES = [
@@ -67,7 +79,9 @@ DEFAULT_NOTES_EXCLUDES = [
     ".trash",
     ".git",
     "archive",
-    "node_modules"
+    "node_modules",
+    "dist",
+    "build"
 ]
 
 class MossEngine:
@@ -148,7 +162,7 @@ class MossEngine:
     def get_sources_status(self) -> Dict[str, Any]:
         return self._source_status
 
-    def clear_source(self, source_type: str = "all"):
+    async def clear_source(self, source_type: str = "all"):
         if source_type in ("all", "codebase"):
             self._cached_chunks = [c for c in self._cached_chunks if c.get("source_type") != "codebase"]
             self._sources["codebase"] = []
@@ -179,14 +193,52 @@ class MossEngine:
                 "tabs_count": 0,
                 "last_updated": ""
             }
-        if source_type == "all":
-            self._cached_chunks.clear()
-            self._indexed_chunks_count = 0
+
+        # Purge index on Moss so previous projects do not linger
+        if self.client:
+            try:
+                await self.client.delete_index(self.index_name)
+                logger.info(f"Purged Moss index '{self.index_name}' on clear_source({source_type})")
+            except Exception as e:
+                logger.debug(f"Moss delete_index notice on clear: {e}")
+
             if os.path.exists(self.cache_path):
                 try:
-                    os.remove(self.cache_path)
+                    if os.path.isdir(self.cache_path):
+                        shutil.rmtree(self.cache_path, ignore_errors=True)
+                    else:
+                        os.remove(self.cache_path)
                 except Exception:
                     pass
+
+            if self._cached_chunks:
+                # Rebuild clean index with remaining active sources
+                remaining_docs = [
+                    DocumentInfo(
+                        id=c["id"],
+                        text=c["content"],
+                        metadata={
+                            "file_path": c.get("file_path", ""),
+                            "start_line": str(c.get("start_line", 1)),
+                            "end_line": str(c.get("end_line", 1)),
+                            "language": c.get("language", "text"),
+                            "symbol_name": c.get("symbol_name", ""),
+                            "symbol_type": c.get("symbol_type", ""),
+                            "source_type": c.get("source_type", "codebase")
+                        }
+                    )
+                    for c in self._cached_chunks
+                ]
+                try:
+                    await self.client.create_index(self.index_name, docs=remaining_docs, model_id="moss-minilm", wait=True)
+                    await self.client.load_index(self.index_name, cache_path=self.cache_path)
+                    self._index_loaded = True
+                    self._indexed_chunks_count = len(remaining_docs)
+                except Exception as e:
+                    logger.warning(f"Failed to recreate Moss index after partial clear: {e}")
+            else:
+                self._index_loaded = False
+                self._indexed_chunks_count = 0
 
     async def initialize(self):
         if not self.is_configured:
@@ -302,12 +354,22 @@ class MossEngine:
         total_files = 0
 
         for root, dirs, files in os.walk(path):
-            rel_root = os.path.relpath(root, path)
-            parts = Path(rel_root).parts if rel_root != "." else ()
-            if any(p in active_excludes for p in parts):
-                continue
+            dirs[:] = [
+                d for d in dirs
+                if d.lower() not in active_excludes
+                and not d.startswith(".")
+                and (d.lower() not in DEFAULT_CODE_EXCLUDES if is_code else d.lower() not in DEFAULT_NOTES_EXCLUDES)
+            ]
 
             for f in files:
+                if f.startswith("."):
+                    continue
+                f_lower = f.lower()
+                if f_lower.endswith(".min.js") or f_lower.endswith(".min.css") or f_lower.endswith(".map"):
+                    continue
+                if f_lower in ("package-lock.json", "pnpm-lock.yaml", "yarn.lock", "cargo.lock", "poetry.lock"):
+                    continue
+
                 ext = os.path.splitext(f)[1].lower()
                 if ext in ext_map:
                     category = ext_map[ext]
@@ -354,15 +416,31 @@ class MossEngine:
             all_files.append(path)
         elif os.path.isdir(path):
             for root, dirs, files in os.walk(path):
-                rel_root = os.path.relpath(root, path)
-                parts = Path(rel_root).parts if rel_root != "." else ()
-                if any(p in active_excludes for p in parts):
-                    continue
+                dirs[:] = [
+                    d for d in dirs
+                    if d.lower() not in active_excludes
+                    and not d.startswith(".")
+                    and (d.lower() not in DEFAULT_CODE_EXCLUDES if is_code else d.lower() not in DEFAULT_NOTES_EXCLUDES)
+                ]
 
                 for f in files:
+                    if f.startswith("."):
+                        continue
+                    f_lower = f.lower()
+                    if f_lower.endswith(".min.js") or f_lower.endswith(".min.css") or f_lower.endswith(".map"):
+                        continue
+                    if f_lower in ("package-lock.json", "pnpm-lock.yaml", "yarn.lock", "cargo.lock", "poetry.lock"):
+                        continue
+
                     ext = os.path.splitext(f)[1].lower()
                     if ext in valid_exts:
-                        all_files.append(os.path.join(root, f))
+                        full_path = os.path.join(root, f)
+                        try:
+                            if os.path.getsize(full_path) > 300 * 1024:
+                                continue
+                        except Exception:
+                            pass
+                        all_files.append(full_path)
 
         total_files = len(all_files)
         processed = 0
@@ -374,7 +452,7 @@ class MossEngine:
         doc_parser = DocumentParser() if not is_code else None
         scanner = SecretScanner()
 
-        for file_path in all_files:
+        def _process_file(file_path: str):
             chunks = []
             if is_code and parser:
                 try:
@@ -399,6 +477,10 @@ class MossEngine:
                 except Exception:
                     chunks = []
 
+            file_docs = []
+            file_meta = []
+            file_bytes = 0
+
             for idx, chunk in enumerate(chunks):
                 scan_res = scanner.scan(chunk.content)
                 redacted_content = scan_res.redacted_content
@@ -419,10 +501,11 @@ class MossEngine:
                     text=redacted_content,
                     metadata=metadata
                 )
-                docs_to_index.append(doc)
-                total_payload_bytes += len(redacted_content.encode("utf-8"))
+                file_docs.append(doc)
+                b_len = len(redacted_content.encode("utf-8"))
+                file_bytes += b_len
 
-                cached_meta.append({
+                file_meta.append({
                     "id": chunk_id,
                     "file_path": file_path,
                     "start_line": chunk.start_line,
@@ -434,16 +517,33 @@ class MossEngine:
                     "source_type": tag
                 })
 
-            processed += 1
-            if on_progress:
-                on_progress(IngestProgress(
-                    job_id=f"{tag}_ingest",
-                    files_processed=processed,
-                    total_files=total_files,
-                    chunks_created=len(docs_to_index),
-                    status=f"Chunking: {os.path.basename(file_path)}",
-                    current_file=file_path
-                ))
+            return file_docs, file_meta, file_bytes
+
+        loop = asyncio.get_running_loop()
+        num_workers = min(8, os.cpu_count() or 4)
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+            batch_size = 20
+            for i in range(0, total_files, batch_size):
+                batch_files = all_files[i:i + batch_size]
+                tasks = [loop.run_in_executor(executor, _process_file, fp) for fp in batch_files]
+                batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+                for fp, res in zip(batch_files, batch_results):
+                    processed += 1
+                    if isinstance(res, tuple) and len(res) == 3:
+                        f_docs, f_meta, f_bytes = res
+                        docs_to_index.extend(f_docs)
+                        cached_meta.extend(f_meta)
+                        total_payload_bytes += f_bytes
+
+                    if on_progress:
+                        on_progress(IngestProgress(
+                            job_id=f"{tag}_ingest",
+                            files_processed=processed,
+                            total_files=total_files,
+                            chunks_created=len(docs_to_index),
+                            status=f"Chunking: {os.path.basename(fp)}",
+                            current_file=fp
+                        ))
 
         if docs_to_index:
             self._cached_chunks = [c for c in self._cached_chunks if c.get("source_type") != tag]
@@ -669,20 +769,57 @@ class MossEngine:
                 logger.warning(f"Failed to log moss_sync: {e}")
 
         try:
-            # Moss SDK pipeline: All sources synchronize via MossClient create_index/add_docs/load_index
+            # 1. Purge previous index on Moss so old documents / previous projects never linger
+            if self.client:
+                try:
+                    await self.client.delete_index(self.index_name)
+                    logger.info(f"Purged previous Moss index '{self.index_name}' before recreation")
+                except Exception as e:
+                    logger.debug(f"Moss delete_index notice: {e}")
+
+            # 2. Clean local cache directory so old index files are purged
+            if os.path.exists(self.cache_path):
+                try:
+                    if os.path.isdir(self.cache_path):
+                        shutil.rmtree(self.cache_path, ignore_errors=True)
+                    else:
+                        os.remove(self.cache_path)
+                except Exception:
+                    pass
+
+            # 3. Assemble active docs: existing non-codebase cached sources + new docs
+            all_active_docs = []
+            for c in self._cached_chunks:
+                all_active_docs.append(DocumentInfo(
+                    id=c["id"],
+                    text=c["content"],
+                    metadata={
+                        "file_path": c.get("file_path", ""),
+                        "start_line": str(c.get("start_line", 1)),
+                        "end_line": str(c.get("end_line", 1)),
+                        "language": c.get("language", "text"),
+                        "symbol_name": c.get("symbol_name", ""),
+                        "symbol_type": c.get("symbol_type", ""),
+                        "source_type": c.get("source_type", "codebase")
+                    }
+                ))
+            all_active_docs.extend(docs)
+
+            # 4. Create fresh index with active documents only
             try:
                 await self.client.create_index(
                     name=self.index_name,
-                    docs=docs,
+                    docs=all_active_docs,
                     model_id="moss-minilm",
                     wait=True
                 )
-            except Exception:
-                await self.client.add_docs(name=self.index_name, docs=docs)
+            except Exception as e:
+                logger.warning(f"Moss create_index fallback: {e}")
+                await self.client.add_docs(name=self.index_name, docs=all_active_docs)
 
             await self.client.load_index(self.index_name, cache_path=self.cache_path)
             self._index_loaded = True
-            self._indexed_chunks_count += len(docs)
+            self._indexed_chunks_count = len(all_active_docs)
             self._cached_chunks.extend(cached_meta)
         finally:
             if privacy_ledger:
@@ -715,9 +852,19 @@ class MossEngine:
         query_duration_ms = (time.time() - start_total) * 1000
 
         results: List[SearchResult] = []
+        active_codebase_paths = [os.path.normpath(p).lower() for p in self._sources.get("codebase", []) if p]
+
         for doc in getattr(moss_result, "docs", []):
             meta = getattr(doc, "metadata", {}) or {}
             doc_source = str(meta.get("source_type", "codebase"))
+            doc_file = str(meta.get("file_path", ""))
+
+            # Defense-in-depth: if codebase chunk, ensure it belongs to current active codebase
+            if doc_source == "codebase" and active_codebase_paths and doc_file:
+                norm_doc_file = os.path.normpath(doc_file).lower()
+                if not any(norm_doc_file.startswith(cp) for cp in active_codebase_paths):
+                    continue
+
             if source_type and source_type != "all":
                 if source_type in ("document", "notes") and doc_source not in ("document", "notes"):
                     continue

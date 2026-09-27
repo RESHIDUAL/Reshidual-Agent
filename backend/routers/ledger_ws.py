@@ -13,18 +13,10 @@ async def subscribe_ledger(
 ):
     await websocket.accept()
     
-    initial_count = privacy_ledger.get_external_connection_count()
+    initial_count = await privacy_ledger.get_external_connection_count()
     await websocket.send_json({"type": "init", "external_connections": initial_count})
     
-    queue = asyncio.Queue()
-    
-    def on_event(event):
-        try:
-            queue.put_nowait(event)
-        except Exception:
-            pass
-
-    sub_id = privacy_ledger.subscribe(on_event) if hasattr(privacy_ledger, 'subscribe') else None
+    queue = privacy_ledger.subscribe()
 
     try:
         while True:
@@ -37,5 +29,4 @@ async def subscribe_ledger(
     except WebSocketDisconnect:
         pass
     finally:
-        if hasattr(privacy_ledger, 'unsubscribe') and sub_id:
-            privacy_ledger.unsubscribe(sub_id)
+        privacy_ledger.unsubscribe(queue)

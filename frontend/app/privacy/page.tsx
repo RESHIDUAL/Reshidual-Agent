@@ -35,8 +35,8 @@ export default function PrivacyPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const mossEventsCount = events.filter(e => e.event_type === 'moss_sync').length || summary.moss_sync_events;
-  const unexpectedCount = events.filter(e => e.event_type === 'unexpected_connection').length || summary.unexpected_connections;
+  const mossEventsCount = summary.moss_sync_events || events.filter(e => e.event_type === 'moss_sync').length;
+  const unexpectedCount = summary.unexpected_connections ?? 0;
   const isClean = unexpectedCount === 0;
 
   const handleEventClick = (eventId: string, type: string) => {
@@ -75,8 +75,8 @@ export default function PrivacyPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-surface text-on-surface p-6">
-      <div className="max-w-6xl w-full mx-auto space-y-6 h-full flex flex-col">
+    <div className="flex flex-col h-full bg-surface text-on-surface p-4 md:p-6 overflow-y-auto">
+      <div className="max-w-6xl w-full mx-auto space-y-6 flex-1 flex flex-col">
 
         {}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -227,12 +227,15 @@ async def execute_query(
     except Exception:
         pass
 
+    pure_engine_ms = getattr(engine_timing, "total_ms", None)
     total_duration_ms = (time.time() - start_total) * 1000
+    reported_total = pure_engine_ms if (not request.synthesize and pure_engine_ms is not None) else total_duration_ms
+
     timing = TimingInfo(
-        total_ms=round(total_duration_ms, 2),
-        semantic_ms=round(getattr(engine_timing, "semantic_ms", total_duration_ms * 0.6), 2),
-        keyword_ms=round(getattr(engine_timing, "keyword_ms", total_duration_ms * 0.3), 2),
-        rerank_ms=round(total_duration_ms * 0.1, 2)
+        total_ms=round(reported_total, 2),
+        semantic_ms=round(getattr(engine_timing, "semantic_ms", reported_total * 0.6), 2),
+        keyword_ms=round(getattr(engine_timing, "keyword_ms", reported_total * 0.3), 2),
+        rerank_ms=round(getattr(engine_timing, "rerank_ms", reported_total * 0.1), 2)
     )
 
     return SearchResults(

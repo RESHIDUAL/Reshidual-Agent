@@ -68,6 +68,7 @@ function TopBarContent() {
 
   const getPageTitle = () => {
     if (pathname.includes('/settings')) return 'Settings & Preferences';
+    if (pathname.includes('/explainability')) return 'Live Retrieval Explainability Map';
     if (currentMode === 'search') return 'Semantic Search (Moss Sub-10ms Engine)';
     return 'Reshidual Agent (Local RAG Copilot)';
   };
@@ -116,8 +117,8 @@ function TopBarContent() {
 
   return (
     <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-surface/90 backdrop-blur-md border-b border-outline-variant/30 z-10 select-none">
-      <div className="flex items-center gap-3">
-        <h1 className="font-display text-base font-bold text-on-surface tracking-tight">
+      <div className="flex items-center gap-3 min-w-0">
+        <h1 className="font-display text-sm sm:text-base font-bold text-on-surface tracking-tight truncate max-w-[180px] sm:max-w-xs md:max-w-sm lg:max-w-none" title={getPageTitle()}>
           {getPageTitle()}
         </h1>
 

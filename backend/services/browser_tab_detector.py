@@ -3,6 +3,7 @@ import struct
 import sqlite3
 import shutil
 import tempfile
+import time
 import ctypes
 from ctypes import wintypes
 from typing import List, Dict, Set
@@ -58,7 +59,20 @@ CloseHandle = ctypes.windll.kernel32.CloseHandle
 CloseHandle.argtypes = [wintypes.HANDLE]
 CloseHandle.restype = wintypes.BOOL
 
+# Chromium epoch offset: microseconds between 1601-01-01 and 1970-01-01
+CHROMIUM_EPOCH_OFFSET = 11644473600000000
+
+# URLs to always filter out (internal browser pages, localhost, auth flows)
+IGNORE_URL_PATTERNS = [
+    'localhost:', '127.0.0.1', 'chrome://', 'brave://', 'edge://',
+    'opera://', 'vivaldi://', 'about:', 'newtab', 'chrome-extension://',
+    'accounts.google', 'signin', 'login', 'oauth', 'challenge/pwd',
+    'callback', 'redirect', 'myaccount.google', 'consent.google',
+]
+
+
 def read_file_shared(path: str) -> bytes:
+    """Read a file using Win32 shared handles to avoid locking conflicts with Chromium."""
     h = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, None, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, None)
     if h == -1 or h == 0:
         return b''
@@ -73,10 +87,26 @@ def read_file_shared(path: str) -> bytes:
     finally:
         CloseHandle(h)
 
+
 def align4(n: int) -> int:
     return (n + 3) & ~3
 
+
 class BrowserTabDetector:
+    """
+    Detects currently open browser tabs across Chromium-based browsers.
+
+    Strategy (in priority order):
+      1. Try reading SNSS session files (Current Session / Tabs_ files) via
+         Win32 non-locking shared file handles. If the live file is non-empty
+         and yields valid tabs, use those.
+      2. If SNSS fails (Chromium locks live files as 0-byte while running),
+         fall back to querying the SQLite History database for pages with
+         very recent last_visit_time AND an active visit (visit_duration > 0
+         or last_visit_time within the last few minutes). This gives us
+         tabs the user is currently looking at rather than historical visits.
+    """
+
     def __init__(self):
         local_app_data = os.environ.get('LOCALAPPDATA', '')
         app_data = os.environ.get('APPDATA', '')
@@ -91,6 +121,7 @@ class BrowserTabDetector:
         ]
 
     def _get_running_process_names(self) -> set:
+        """Detect which browser executables are currently running using Win32 snapshot."""
         target_exes = {cfg[1].lower() for cfg in self.browser_configs}
         running = set()
         try:
@@ -120,6 +151,7 @@ class BrowserTabDetector:
         return running
 
     def _parse_snss_file(self, data: bytes) -> List[Dict[str, any]]:
+        """Parse an SNSS binary session file and extract open tab URLs/titles."""
         if len(data) < 8 or data[:4] != b'SNSS':
             return []
 
@@ -193,8 +225,20 @@ class BrowserTabDetector:
 
         return tabs_to_show
 
-    def _fallback_history_scan(self, bname: str, bdir: str, seen_urls: set, seen_titles: set) -> List[Dict[str, str]]:
-        fallback_tabs = []
+    def _get_active_tabs_from_history(self, bname: str, bdir: str,
+                                      seen_urls: set, seen_titles: set) -> List[Dict[str, str]]:
+        """
+        Query the Chromium History SQLite database for CURRENTLY OPEN tabs.
+
+        Key signal: Chromium's visits table has a visit_duration column.
+        When a tab is still open, the most recent visit for that URL has
+        visit_duration = 0 (the visit hasn't ended yet). When the user
+        closes the tab or navigates away, Chromium writes the actual
+        duration in microseconds. By filtering for visit_duration = 0
+        with a recent visit_time, we get only tabs that are truly open
+        right now.
+        """
+        active_tabs = []
         profiles = []
         try:
             for item in os.listdir(bdir):
@@ -206,7 +250,13 @@ class BrowserTabDetector:
             if os.path.exists(root_hp) and root_hp not in profiles:
                 profiles.append(root_hp)
         except Exception:
-            return fallback_tabs
+            return active_tabs
+
+        now_epoch = time.time()
+        now_chromium = int(now_epoch * 1000000) + CHROMIUM_EPOCH_OFFSET
+
+        # Only consider visits from the last 4 hours (covers a full work session)
+        recency_cutoff = now_chromium - (4 * 60 * 60 * 1000000)
 
         for hpath in profiles:
             tmp_db = None
@@ -215,55 +265,74 @@ class BrowserTabDetector:
                 shutil.copyfile(hpath, tmp_db)
                 conn = sqlite3.connect(tmp_db)
                 cur = conn.cursor()
+
+                # Find URLs whose MOST RECENT visit has visit_duration = 0.
+                # This means the tab is still open (Chromium hasn't recorded
+                # an end time yet). We also require the visit to be recent
+                # (within the last 4 hours) to avoid ancient stale entries.
                 rows = cur.execute("""
-                    SELECT u.title, u.url, v.visit_time
+                    SELECT u.title, u.url, v.visit_time, v.visit_duration
                     FROM visits v
                     JOIN urls u ON v.url = u.id
-                    WHERE u.title != ''
+                    WHERE v.visit_time > ?
+                      AND v.visit_duration = 0
+                      AND u.title != ''
                     ORDER BY v.visit_time DESC
-                    LIMIT 40
-                """).fetchall()
+                """, (recency_cutoff,)).fetchall()
 
-                import time
-                now_epoch = time.time()
+                # For each URL, only keep the entry if its LATEST visit
+                # across ALL visits (not just duration=0 ones) also has
+                # duration=0. This handles the case where a tab was opened,
+                # closed, then the URL appears in an older duration=0 visit.
+                url_latest_duration = {}
+                all_recent = cur.execute("""
+                    SELECT u.url, v.visit_duration
+                    FROM visits v
+                    JOIN urls u ON v.url = u.id
+                    WHERE v.visit_time > ?
+                    ORDER BY v.visit_time DESC
+                """, (recency_cutoff,)).fetchall()
+
+                for url_val, dur in all_recent:
+                    url_stripped = url_val.strip()
+                    if url_stripped not in url_latest_duration:
+                        url_latest_duration[url_stripped] = dur
 
                 for row in rows:
-                    title = row[0]
-                    url = row[1]
-                    vt = row[2]
+                    title = (row[0] or '').strip()
+                    url = (row[1] or '').strip()
 
-                    if vt:
-                        try:
-                            epoch_time = (vt - 11644473600000000) / 1000000.0
-                            age_hours = (now_epoch - epoch_time) / 3600.0
-                            if age_hours > 8.0:
-                                continue
-                        except Exception:
-                            pass
+                    if not title or not url:
+                        continue
 
-                    clean_title = title.strip()
-                    clean_url = url.strip()
-                    if not clean_title or not clean_url:
+                    # Only include if the ABSOLUTE latest visit for this URL
+                    # also has duration=0 (confirming tab is still open)
+                    latest_dur = url_latest_duration.get(url, -1)
+                    if latest_dur != 0:
                         continue
-                    if any(ign in clean_url.lower() for ign in [
-                        'localhost:', '127.0.0.1', 'chrome://', 'brave://', 'edge://', 'opera://', 
-                        'about:', 'newtab', 'accounts.google', 'signin', 'login', 'oauth', 
-                        'challenge/pwd', 'callback', 'redirect'
-                    ]):
+
+                    # Filter out internal/auth URLs
+                    url_lower = url.lower()
+                    if any(ign in url_lower for ign in IGNORE_URL_PATTERNS):
                         continue
-                    url_key = clean_url.split('?')[0].rstrip('/')
-                    if url_key in seen_urls or clean_title.lower() in seen_titles:
+
+                    # Deduplicate by base URL (strip query params)
+                    url_key = url.split('?')[0].rstrip('/')
+                    if url_key in seen_urls or title.lower() in seen_titles:
                         continue
-                    domain = clean_url.split('/')[2] if len(clean_url.split('/')) > 2 else ''
+
+                    domain = url.split('/')[2] if len(url.split('/')) > 2 else ''
                     seen_urls.add(url_key)
-                    seen_titles.add(clean_title.lower())
-                    fallback_tabs.append({
-                        'id': f"{bname.lower()}_hist_{len(fallback_tabs)}",
-                        'title': clean_title,
-                        'url': clean_url,
+                    seen_titles.add(title.lower())
+
+                    active_tabs.append({
+                        'id': f"{bname.lower()}_active_{len(active_tabs)}",
+                        'title': title,
+                        'url': url,
                         'browser': bname,
                         'favicon': f"https://www.google.com/s2/favicons?domain={domain}&sz=32"
                     })
+
                 conn.close()
             except Exception:
                 pass
@@ -273,9 +342,18 @@ class BrowserTabDetector:
                         os.remove(tmp_db)
                     except Exception:
                         pass
-        return fallback_tabs
+
+        return active_tabs
 
     def get_open_tabs(self) -> List[Dict[str, str]]:
+        """
+        Detect and return currently open browser tabs.
+
+        For each running Chromium browser:
+          1. Try SNSS session file parsing (most accurate when readable)
+          2. If SNSS yields nothing (live files locked at 0 bytes), fall back
+             to History database with a tight 30-minute recency window
+        """
         running_names = self._get_running_process_names()
         all_tabs: List[Dict[str, str]] = []
         seen_urls = set()
@@ -287,6 +365,7 @@ class BrowserTabDetector:
             if not os.path.exists(bdir):
                 continue
 
+            # --- Phase 1: Try SNSS session files ---
             profiles = []
             try:
                 for item in os.listdir(bdir):
@@ -306,63 +385,72 @@ class BrowserTabDetector:
                 try:
                     session_files = []
                     for f in os.listdir(sdir):
-                        if (f.startswith('Session_') or f.startswith('Tabs_')) and not f.endswith('-journal'):
+                        # Only read Tabs_ files (current tab state), skip
+                        # Session_ files (previous session restore data)
+                        if f.startswith('Tabs_') and not f.endswith('-journal'):
                             fp = os.path.join(sdir, f)
                             try:
+                                fsize = os.path.getsize(fp)
                                 mtime = os.path.getmtime(fp)
-                                session_files.append((fp, mtime))
+                                # Skip 0-byte files (Chromium holds live
+                                # file locked; 0 bytes means unreadable)
+                                if fsize > 0:
+                                    session_files.append((fp, mtime))
                             except Exception:
                                 pass
+
+                    # Sort by modification time, newest first
                     session_files.sort(key=lambda x: x[1], reverse=True)
 
-                    for sfile, _ in session_files:
+                    # Only read the MOST RECENT non-empty Tabs_ file.
+                    # Older Tabs_ files contain previous session data.
+                    if session_files:
+                        sfile = session_files[0][0]
+                        sfile_mtime = session_files[0][1]
+
+                        # If the most recent Tabs_ file is older than 30
+                        # minutes, it is stale (from a previous session
+                        # before the browser restarted). Skip it.
+                        age_minutes = (time.time() - sfile_mtime) / 60.0
+                        if age_minutes > 30:
+                            continue
+
                         data = read_file_shared(sfile)
-                        if not data:
-                            continue
-                        parsed = self._parse_snss_file(data)
-                        if not parsed:
-                            continue
+                        if data:
+                            parsed = self._parse_snss_file(data)
+                            for item in parsed:
+                                clean_url = item['url']
+                                clean_title = item['title']
 
-                        for item in parsed:
-                            clean_url = item['url']
-                            clean_title = item['title']
+                                url_lower = clean_url.lower()
+                                if any(ign in url_lower for ign in IGNORE_URL_PATTERNS):
+                                    continue
 
-                            if any(ign in clean_url.lower() for ign in [
-                                'localhost:3000',
-                                'localhost:8420',
-                                '127.0.0.1',
-                                'chrome://',
-                                'brave://',
-                                'edge://',
-                                'opera://',
-                                'about:',
-                                'newtab'
-                            ]):
-                                continue
+                                url_key = clean_url.split('?')[0].rstrip('/')
+                                if url_key in seen_urls or clean_title.lower() in seen_titles:
+                                    continue
 
-                            url_key = clean_url.split('?')[0].rstrip('/')
-                            if url_key in seen_urls or clean_title.lower() in seen_titles:
-                                continue
+                                domain = clean_url.split('/')[2] if len(clean_url.split('/')) > 2 else ''
+                                seen_urls.add(url_key)
+                                seen_titles.add(clean_title.lower())
 
-                            domain = clean_url.split('/')[2] if len(clean_url.split('/')) > 2 else ''
-                            seen_urls.add(url_key)
-                            seen_titles.add(clean_title.lower())
+                                all_tabs.append({
+                                    'id': f"{bname.lower()}_{item['window_id']}_{item['tab_id']}",
+                                    'title': clean_title,
+                                    'url': clean_url,
+                                    'browser': bname,
+                                    'favicon': f"https://www.google.com/s2/favicons?domain={domain}&sz=32"
+                                })
+                                browser_tabs_found = True
 
-                            all_tabs.append({
-                                'id': f"{bname.lower()}_{item['window_id']}_{item['tab_id']}",
-                                'title': clean_title,
-                                'url': clean_url,
-                                'browser': bname,
-                                'favicon': f"https://www.google.com/s2/favicons?domain={domain}&sz=32"
-                            })
-                            browser_tabs_found = True
-
-                        if parsed:
-                            break
                 except Exception:
                     pass
 
-            hist_tabs = self._fallback_history_scan(bname, bdir, seen_urls, seen_titles)
-            all_tabs.extend(hist_tabs)
+            # --- Phase 2: History fallback (only if SNSS found nothing) ---
+            if not browser_tabs_found:
+                hist_tabs = self._get_active_tabs_from_history(
+                    bname, bdir, seen_urls, seen_titles
+                )
+                all_tabs.extend(hist_tabs)
 
         return all_tabs

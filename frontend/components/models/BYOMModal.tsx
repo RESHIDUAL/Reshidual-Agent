@@ -153,7 +153,7 @@ export function BYOMModal({ isOpen, onClose, onKeysSaved }: BYOMModalProps) {
               <div className="relative">
                 <input
                   type="password"
-                  placeholder={existingKeys.nvidia ? 'Update NVIDIA API Key...' : 'Paste nvapi-... key'}
+                  placeholder={existingKeys.nvidia ? 'Update NVIDIA API Key...' : 'Enter your NVIDIA API key'}
                   value={nvidiaKey}
                   onChange={(e) => setNvidiaKey(e.target.value)}
                   className="w-full bg-surface text-on-surface text-xs font-mono px-3.5 py-2.5 rounded-xl border border-outline-variant/60 focus:border-primary outline-none transition-colors"
@@ -184,7 +184,7 @@ export function BYOMModal({ isOpen, onClose, onKeysSaved }: BYOMModalProps) {
               <div className="relative">
                 <input
                   type="password"
-                  placeholder={existingKeys.openrouter ? 'Update OpenRouter API Key...' : 'Paste sk-or-v1-... key'}
+                  placeholder={existingKeys.openrouter ? 'Update OpenRouter API Key...' : 'Enter your OpenRouter API key'}
                   value={openrouterKey}
                   onChange={(e) => setOpenrouterKey(e.target.value)}
                   className="w-full bg-surface text-on-surface text-xs font-mono px-3.5 py-2.5 rounded-xl border border-outline-variant/60 focus:border-primary outline-none transition-colors"
@@ -215,7 +215,7 @@ export function BYOMModal({ isOpen, onClose, onKeysSaved }: BYOMModalProps) {
               <div className="relative">
                 <input
                   type="password"
-                  placeholder={existingKeys.google ? 'Update Google AI API Key...' : 'Paste AIzaSy... key'}
+                  placeholder={existingKeys.google ? 'Update Google AI API Key...' : 'Enter your Google AI API key'}
                   value={googleKey}
                   onChange={(e) => setGoogleKey(e.target.value)}
                   className="w-full bg-surface text-on-surface text-xs font-mono px-3.5 py-2.5 rounded-xl border border-outline-variant/60 focus:border-primary outline-none transition-colors"
